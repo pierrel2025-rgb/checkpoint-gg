@@ -87,7 +87,24 @@ def dashboard():
     if "user_id" not in session:
         return redirect("/login")
 
-    return render_template("dashboard.html")
+    conn = sqlite3.connect("checkpoint.db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT *
+        FROM games
+        WHERE user_id = ?
+    """,
+    (session["user_id"],))
+
+    games = cursor.fetchall()
+
+    conn.close()
+
+    return render_template(
+        "dashboard.html",
+        games=games
+    )
 
 @app.route("/logout")
 def logout():
@@ -95,6 +112,60 @@ def logout():
     session.clear()
 
     return redirect("/login")
+
+@app.route("/add_game", methods=["POST"])
+def add_game():
+
+    if "user_id" not in session:
+        return redirect("/login")
+
+    title = request.form.get("title")
+    platform = request.form.get("platform")
+    status = request.form.get("status")
+
+    conn = sqlite3.connect("checkpoint.db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO games
+        (user_id, title, platform, status)
+        VALUES (?, ?, ?, ?)
+    """,
+    (
+        session["user_id"],
+        title,
+        platform,
+        status
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return redirect("/dashboard")
+
+@app.route("/delete/<int:game_id>")
+def delete_game(game_id):
+
+    if "user_id" not in session:
+        return redirect("/login")
+
+    conn = sqlite3.connect("checkpoint.db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        DELETE FROM games
+        WHERE id = ?
+        AND user_id = ?
+    """,
+    (
+        game_id,
+        session["user_id"]
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return redirect("/dashboard")
 
 if __name__ == "__main__":
     app.run(debug=True)
